@@ -27,7 +27,8 @@ trait GetFiles
      */
     public function getFiles($folder, $order, $filter = false)
     {
-        $filesData = $this->storage->listContents($folder);
+        $filesData = $this->storage->listContents($folder)->toArray();
+        $filesData = json_decode(json_encode($filesData), true);
         $filesData = $this->normalizeFiles($filesData);
         $files = [];
 
@@ -61,18 +62,18 @@ trait GetFiles
      */
     public function getFileData($file, $id)
     {
-        if (! $this->isDot($file) && ! $this->exceptExtensions->contains($file['extension']) && ! $this->exceptFolders->contains($file['basename']) && ! $this->exceptFiles->contains($file['basename']) && $this->accept($file)) {
+        if (! $this->isDot($file) && ! $this->exceptExtensions->contains($file['extension']) && ! $this->exceptFolders->contains($file['path']) && ! $this->exceptFiles->contains($file['path']) && $this->accept($file)) {
             $fileInfo = [
                 'id'         => $id,
-                'name'       => trim($file['basename']),
+                'name'       => trim($file['path']),
                 'path'       => $this->cleanSlashes($file['path']),
                 'type'       => $file['type'],
                 'mime'       => $this->getFileType($file),
-                'ext'        => (isset($file['extension'])) ? $file['extension'] : false,
-                'size'       => ($file['size'] != 0) ? $file['size'] : 0,
-                'size_human' => ($file['size'] != 0) ? $this->formatBytes($file['size'], 0) : 0,
+                'ext'        => (isset($file['path'])) ? explode('.', $file['path'])[1] ?? null : false,
+                'size'       => ($file['file_size'] ?? null != 0) ? $file['file_size'] ?? null : 0,
+                'size_human' => ($file['file_size'] ?? null != 0) ? $this->formatBytes($file['file_size'] ?? null, 0) : 0,
                 'thumb'      => $this->getThumbFile($file),
-                'asset'      => $this->cleanSlashes($this->storage->url($file['basename'])),
+                'asset'      => $this->cleanSlashes($this->storage->url($file['path'])),
                 'can'        => true,
                 'loading'    => false,
             ];
@@ -183,10 +184,10 @@ trait GetFiles
     public function generateId($file)
     {
         if (isset($file['timestamp'])) {
-            return md5($this->disk.'_'.trim($file['basename']).$file['timestamp']);
+            return md5($this->disk.'_'.trim($file['path']).$file['last_modified']);
         }
 
-        return md5($this->disk.'_'.trim($file['basename']));
+        return md5($this->disk.'_'.trim($file['path']));
     }
 
     /**
@@ -196,7 +197,7 @@ trait GetFiles
      */
     public function setRelativePath($folder)
     {
-        $defaultPath = storage_path();
+        $defaultPath = public_path();
 
         $publicPath = str_replace($defaultPath, '', $folder);
 
@@ -406,7 +407,7 @@ trait GetFiles
      */
     public function accept($file)
     {
-        return '.' !== substr($file['basename'], 0, 1);
+        return '.' !== substr($file['path'], 0, 1);
     }
 
     /**
@@ -418,7 +419,7 @@ trait GetFiles
      */
     public function isDot($file)
     {
-        if (Str::startsWith($file['basename'], '.')) {
+        if (Str::startsWith($file['path'], '.')) {
             return true;
         }
 
@@ -464,7 +465,7 @@ trait GetFiles
      */
     public function getPaths($currentFolder)
     {
-        $defaultPath = $this->cleanSlashes(storage_path());
+        $defaultPath = $this->cleanSlashes(public_path());
         $currentPath = $this->cleanSlashes($this->storage->path($currentFolder));
 
         $paths = $currentPath;
@@ -510,9 +511,10 @@ trait GetFiles
      */
     private function checkShouldHideFolder($path)
     {
-        $filesData = $this->storage->listContents($path);
+        $filesData = $this->storage->listContents($path)->toArray();
+        $filesData = json_decode(json_encode($filesData), true);
 
-        $key = array_search('.hide', array_column($filesData, 'basename'));
+        $key = array_search('.hide', array_column($filesData, 'path'));
 
         if ($key === false) {
             return true;
