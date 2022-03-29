@@ -78,9 +78,9 @@ trait GetFiles
                 'loading'    => false,
             ];
 
-            if (isset($file['timestamp'])) {
-                $fileInfo['last_modification'] = $file['timestamp'];
-                $fileInfo['date'] = $this->modificationDate($file['timestamp']);
+            if (isset($file['last_modified'])) {
+                $fileInfo['last_modification'] = $file['last_modified'];
+                $fileInfo['date'] = $this->modificationDate($file['last_modified']);
             }
 
             if ($fileInfo['mime'] == 'image') {
